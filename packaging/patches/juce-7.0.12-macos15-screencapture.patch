@@ -1,0 +1,22 @@
+diff --git a/modules/juce_gui_basics/native/juce_Windowing_mac.mm b/modules/juce_gui_basics/native/juce_Windowing_mac.mm
+index ad459d4..32005e8 100644
+--- a/modules/juce_gui_basics/native/juce_Windowing_mac.mm
++++ b/modules/juce_gui_basics/native/juce_Windowing_mac.mm
+@@ -520,6 +520,9 @@ static Image createNSWindowSnapshot (NSWindow* nsWindow)
+ {
+     JUCE_AUTORELEASEPOOL
+     {
++       #if __MAC_OS_X_VERSION_MAX_ALLOWED >= 150000
++        return {};
++       #else
+         // CGWindowListCreateImage is replaced by functions in the ScreenCaptureKit framework, but
+         // that framework is only available from macOS 12.3 onwards.
+         // A suitable @available check should be added once the minimum build OS is 12.3 or greater,
+@@ -551,6 +554,7 @@ static Image createNSWindowSnapshot (NSWindow* nsWindow)
+         CGImageRelease (screenShot);
+ 
+         return result;
++       #endif
+     }
+ }
+ 
