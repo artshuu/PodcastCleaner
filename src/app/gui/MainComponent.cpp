@@ -116,6 +116,7 @@ juce::String formatReport (const PipelineReport& report)
     text << "Mastering gain: " << juce::String (report.appliedGainDb, 2)
          << " dB, limiter reduction: " << juce::String (report.limiterReductionDb, 2) << " dB\n";
     text << "Non-speech ratio: " << juce::String (report.nonSpeechRatio, 3) << "\n";
+    text << "Silenced (non-speech) ratio: " << juce::String (report.silencedRatio, 3) << "\n";
     text << "Censored ranges: " << static_cast<int> (report.censoredRanges.size()) << "\n";
 
     for (const auto& range : report.censoredRanges)
@@ -248,6 +249,12 @@ MainComponent::MainComponent()
     denoiseSlider.setTooltip ("0 dB turns noise reduction off. Higher values remove more noise.");
     addAndMakeVisible (denoiseSlider);
 
+    silenceButton.setButtonText ("Replace non-speech with silence (smooth cross-fade)");
+    silenceButton.setColour (juce::ToggleButton::textColourId, juce::Colour (0xffe7ebef));
+    silenceButton.setTooltip ("Voice-activity gate: speech passes through untouched, "
+                              "everything else is faded to silence.");
+    addAndMakeVisible (silenceButton);
+
     processButton.setButtonText ("Process");
     processButton.setColour (juce::TextButton::buttonColourId, juce::Colour (0xff58c6a7));
     processButton.setColour (juce::TextButton::textColourOffId, juce::Colour (0xff10231d));
@@ -333,6 +340,9 @@ void MainComponent::resized()
     auto denoiseRow = area.removeFromTop (34);
     denoiseCaption.setBounds (denoiseRow.removeFromLeft (120));
     denoiseSlider.setBounds (denoiseRow);
+    area.removeFromTop (8);
+
+    silenceButton.setBounds (area.removeFromTop (28));
     area.removeFromTop (10);
 
     auto processRow = area.removeFromTop (36);
@@ -514,6 +524,7 @@ void MainComponent::startProcessing()
     const float reductionDb = static_cast<float> (denoiseSlider.getValue());
     options.denoise = reductionDb > 0.0f;
     options.denoiseSettings.reductionDb = reductionDb;
+    options.silenceNonSpeech = silenceButton.getToggleState();
     options.censor = censor;
     options.censorMode = CensorMode::Mute;
 
@@ -611,6 +622,7 @@ void MainComponent::setBusy (bool busy)
     censorButton.setEnabled (! busy);
     languageBox.setEnabled (! busy);
     denoiseSlider.setEnabled (! busy);
+    silenceButton.setEnabled (! busy);
     progressBar.setVisible (busy);
 }
 

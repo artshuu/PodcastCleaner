@@ -57,6 +57,8 @@ private:
     juce::Label denoiseCaption;
     juce::Slider denoiseSlider;
 
+    juce::ToggleButton silenceButton;
+
     juce::TextButton processButton;
     double progressValue = 0.0;
     juce::ProgressBar progressBar { progressValue };

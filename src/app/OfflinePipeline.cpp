@@ -91,7 +91,31 @@ PipelineReport OfflinePipeline::run (AudioData& audio,
         report.denoisedChannels = static_cast<int> (audio.channels.size());
     }
 
-    // 2. Censoring.
+    // 2. Replace non-speech with silence (length preserving, smooth fades).
+    if (options.silenceNonSpeech)
+    {
+        NonSpeechSilencer silencer;
+        silencer.prepare (sampleRate, options.silenceSettings);
+
+        // Build one envelope from the mixdown so every channel is gated
+        // identically (this keeps the stereo image intact).
+        const std::vector<float> mono = mixdown (audio.channels);
+        std::vector<float> envelope;
+        silencer.buildEnvelope (mono, envelope);
+
+        for (auto& channel : audio.channels)
+            NonSpeechSilencer::applyEnvelope (channel, envelope);
+
+        std::int64_t silenced = 0;
+        for (const float gain : envelope)
+            if (gain < 0.5f)
+                ++silenced;
+        report.silencedRatio = envelope.empty()
+            ? 0.0f
+            : static_cast<float> (silenced) / static_cast<float> (envelope.size());
+    }
+
+    // 3. Censoring.
     std::vector<SampleRange> ranges = options.forcedRanges;
     if (options.censor)
     {
@@ -122,7 +146,7 @@ PipelineReport OfflinePipeline::run (AudioData& audio,
         }
     }
 
-    // 3. Mastering: loudness normalisation then true-peak limiting.
+    // 4. Mastering: loudness normalisation then true-peak limiting.
     if (options.mastering)
     {
         const float measured = LoudnessMeter::integratedLoudness (audio.channels, sampleRate);

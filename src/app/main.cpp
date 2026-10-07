@@ -40,6 +40,13 @@ void printUsage()
         "  --denoise-reduction <dB>     max noise attenuation (default 12)\n"
         "  --speech-protection <0..1>   how strongly speech is preserved (default 0.9)\n"
         "  --vad-sensitivity <0..1>     speech detector sensitivity (default 0.5)\n"
+        "  --silence-non-speech         replace non-speech regions with silence\n"
+        "  --silence-threshold <0..1>   speech probability that opens the gate (default 0.35)\n"
+        "  --silence-sensitivity <0..1> VAD sensitivity for the gate (default 0.5)\n"
+        "  --silence-attack-ms <ms>     fade-in once speech appears (default 30)\n"
+        "  --silence-release-ms <ms>    fade-out after speech ends (default 150)\n"
+        "  --silence-hold-ms <ms>       keep the gate open after speech (default 150)\n"
+        "  --silence-floor-db <db>      level of the silenced regions (default -60)\n"
         "  --censor                     enable profanity censoring\n"
         "  --censor-mode mute|beep      how to conceal words (default mute)\n"
         "  --beep-hz <hz>               beep frequency (default 1000)\n"
@@ -77,6 +84,19 @@ bool parseArgs (int argc, char** argv, CommandLine& commandLine)
     {
         const std::string arg = argv[index];
         if (arg == "--no-denoise") commandLine.options.denoise = false;
+        else if (arg == "--silence-non-speech") commandLine.options.silenceNonSpeech = true;
+        else if (arg == "--silence-threshold")
+            nextFloat (index, commandLine.options.silenceSettings.openThreshold);
+        else if (arg == "--silence-sensitivity")
+            nextFloat (index, commandLine.options.silenceSettings.sensitivity);
+        else if (arg == "--silence-attack-ms")
+            nextFloat (index, commandLine.options.silenceSettings.attackMs);
+        else if (arg == "--silence-release-ms")
+            nextFloat (index, commandLine.options.silenceSettings.releaseMs);
+        else if (arg == "--silence-hold-ms")
+            nextFloat (index, commandLine.options.silenceSettings.holdMs);
+        else if (arg == "--silence-floor-db")
+            nextFloat (index, commandLine.options.silenceSettings.floorDb);
         else if (arg == "--censor") commandLine.options.censor = true;
         else if (arg == "--no-mastering") commandLine.options.mastering = false;
         else if (arg == "--denoise-reduction")
@@ -225,6 +245,8 @@ int main (int argc, char** argv)
     std::cout << "Mastering gain: " << report.appliedGainDb << " dB, limiter reduction: "
               << report.limiterReductionDb << " dB\n";
     std::cout << "Non-speech ratio: " << report.nonSpeechRatio << "\n";
+    if (commandLine.options.silenceNonSpeech)
+        std::cout << "Silenced (non-speech) ratio: " << report.silencedRatio << "\n";
     std::cout << "Censored ranges: " << report.censoredRanges.size() << "\n";
     for (const auto& range : report.censoredRanges)
         std::cout << "  [" << range.start << ", " << range.end << ") samples\n";

@@ -3,6 +3,7 @@
 #include "Analysis/ProfanityDetector.h"
 #include "Analysis/TranscriptProvider.h"
 #include "DSPStages/CensorStage.h"
+#include "DSPStages/NonSpeechSilencer.h"
 #include "DSPStages/SpectralDenoiser.h"
 #include "WavFile.h"
 
@@ -16,6 +17,9 @@ struct PipelineOptions
 {
     bool denoise = true;
     SpectralDenoiser::Settings denoiseSettings;
+
+    bool silenceNonSpeech = false;
+    NonSpeechSilencer::Settings silenceSettings;
 
     bool censor = false;
     CensorMode censorMode = CensorMode::Mute;
@@ -45,6 +49,7 @@ struct PipelineReport
     float limiterReductionDb = 0.0f;
     float nonSpeechRatio = 0.0f;
     int denoisedChannels = 0;
+    float silencedRatio = 0.0f;   // fraction of samples gated to silence
 
     std::vector<TranscriptWord> transcript;
     std::vector<SampleRange> censoredRanges;
@@ -52,8 +57,8 @@ struct PipelineReport
 
 /** Runs the full offline cleanup chain on decoded audio, in place.
 
-    Order: spectral denoise -> (speech recognition ->) profanity censor ->
-    loudness normalisation -> true-peak limiting. The sample count of every
+    Order: spectral denoise -> silence non-speech -> (speech recognition ->)
+    profanity censor -> loudness normalisation -> true-peak limiting. The sample count of every
     channel is identical before and after, so the track duration never changes. */
 class OfflinePipeline
 {

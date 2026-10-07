@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.22)
 
-project(PodcastCleanerApp VERSION 0.1.0 LANGUAGES C CXX)
+project(PodcastCleanerApp VERSION 0.2.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -37,6 +37,7 @@ set(CORE_SOURCES
     "${CORE_DIR}/Analysis/LoudnessMeter.cpp"
     "${CORE_DIR}/Analysis/ProfanityDetector.cpp"
     "${CORE_DIR}/DSPStages/SpectralDenoiser.cpp"
+    "${CORE_DIR}/DSPStages/NonSpeechSilencer.cpp"
     "${CORE_DIR}/DSPStages/CensorStage.cpp"
     "${CORE_DIR}/DSPStages/TruePeakLimiter.cpp"
 )
@@ -87,7 +88,7 @@ if(PODCASTCLEANER_BUILD_GUI)
         PRODUCT_NAME "Podcast Cleaner"
         COMPANY_NAME "Podcast Cleaner"
         BUNDLE_ID "audio.podcastcleaner.app"
-        VERSION "0.1.0"
+        VERSION "0.2.0"
     )
 
     target_sources(podcast-cleaner-gui PRIVATE

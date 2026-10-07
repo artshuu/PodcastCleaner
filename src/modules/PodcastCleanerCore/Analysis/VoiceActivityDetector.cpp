@@ -13,7 +13,14 @@ constexpr float powerFloor = 1.0e-9f;
 
 // Minimum-statistics tuning.
 constexpr int blockLengthFrames = 48; // number of non-speech frames per block
-constexpr float minimumBias = 1.5f;   // the block minimum underestimates the mean
+// The tracked floor is the minimum of the smoothed noise power over a block of
+// non-speech frames, which underestimates the mean power. For 48 frames with
+// 0.5 smoothing that minimum lands around 0.2x the mean, so a bias of ~5 lifts
+// the per-bin estimate back onto the true noise level (measured est/true ~1.0 on
+// a pure-noise signal). The previous value of 1.5 left the floor ~6 dB too low,
+// which inflated the Wiener gains: the "noise reduction" control barely changed
+// anything and only ~4-6 dB of noise was removed no matter how high it was set.
+constexpr float minimumBias = 5.0f;
 constexpr float speechCutoff = 0.5f;  // the floor is frozen above this probability
 constexpr float powerSmoothing = 0.5f;
 

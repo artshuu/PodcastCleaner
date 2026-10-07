@@ -2,6 +2,7 @@
 #include "Analysis/ProfanityDetector.h"
 #include "Analysis/VoiceActivityDetector.h"
 #include "DSPStages/CensorStage.h"
+#include "DSPStages/NonSpeechSilencer.h"
 #include "DSPStages/SpectralDenoiser.h"
 #include "DSPStages/TruePeakLimiter.h"
 #include "DSPUtils/Fft.h"
@@ -162,6 +163,63 @@ int main()
         check (noiseOut < noiseIn * 0.6f, "denoiser reduces noise");
         check (speechOut > speechIn * 0.9f, "denoiser preserves speech");
     }
+
+    // Non-speech silencer: gate non-speech to silence, keep speech, fade smoothly.
+    {
+        const double sr = 16000.0;
+        const int length = 48000;   // 3 seconds
+        std::normal_distribution<float> noise (0.0f, 0.02f);
+        std::vector<float> input (length);
+        for (int i = 0; i < length; ++i)
+        {
+            const double t = i / sr;
+            float speech = 0.0f;
+            if (t >= 0.4 && t < 1.6)   // speech burst: samples 6400..25600
+                speech = 0.30f * std::sin (twoPi * 180.0 * t)
+                       + 0.18f * std::sin (twoPi * 360.0 * t)
+                       + 0.10f * std::sin (twoPi * 900.0 * t);
+            input[static_cast<size_t> (i)] = speech + noise (rng);
+        }
+
+        NonSpeechSilencer silencer;
+        NonSpeechSilencer::Settings settings;
+        silencer.prepare (sr, settings);
+
+        std::vector<float> envelope;
+        silencer.buildEnvelope (input, envelope);
+        check (envelope.size() == input.size(), "silencer envelope length");
+
+        float preSpeech = 0.0f;
+        for (int i = 2000; i < 5000; ++i) preSpeech = std::max (preSpeech, envelope[static_cast<size_t> (i)]);
+        float postSpeech = 0.0f;
+        for (int i = 45000; i < 47500; ++i) postSpeech = std::max (postSpeech, envelope[static_cast<size_t> (i)]);
+        float speechMin = 1.0f;
+        for (int i = 10000; i < 20000; ++i) speechMin = std::min (speechMin, envelope[static_cast<size_t> (i)]);
+
+        bool fading = false;
+        for (int i = 6400; i < 7000; ++i)
+        {
+            const float g = envelope[static_cast<size_t> (i)];
+            if (g > 0.1f && g < 0.9f) fading = true;
+        }
+
+        std::printf ("silencer: pre %.4f post %.4f speech %.4f ratio %.3f\n",
+                     preSpeech, postSpeech, speechMin, silencer.getSpeechRatio());
+        check (preSpeech < 0.05f, "silencer silences leading non-speech");
+        check (postSpeech < 0.05f, "silencer silences trailing non-speech");
+        check (speechMin > 0.9f, "silencer keeps speech open");
+        check (fading, "silencer fades smoothly at the boundary");
+
+        std::vector<float> output;
+        silencer.process (input, output);
+        check (output.size() == input.size(), "silencer process length");
+        const float speechIn = rms (input, 10000, 20000);
+        const float speechOut = rms (output, 10000, 20000);
+        const float silenceOut = rms (output, 45000, 47500);
+        check (speechOut > speechIn * 0.9f, "silencer preserves speech samples");
+        check (silenceOut < 0.001f, "silencer output is silent off-speech");
+    }
+
     // Censor: mute and beep both preserve the length.
     {
         CensorStage censor;
